@@ -1,0 +1,6 @@
+{
+    "files.associations": {
+        "cgp.h": "c",
+        "cartpole.h": "c"
+    }
+}

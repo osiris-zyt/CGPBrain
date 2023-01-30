@@ -1,0 +1,34 @@
+digraph NeuralNetwork {
+rankdir=LR;
+size="4,3";
+center = true;
+node0 [label="(0) Input", color=black, labelfontcolor=black, fontcolor=black];
+node1 [label="(1) sub", color=black, labelfontcolor=black, fontcolor=black];
+node0 -> node1 [label=" (0)", labelfontcolor=black, fontcolor=black, bold=true, color=black];
+node0 -> node1 [label=" (1)", labelfontcolor=black, fontcolor=black, bold=true, color=black];
+node2 [label="(2) sub", color=black, labelfontcolor=black, fontcolor=black];
+node1 -> node2 [label=" (0)", labelfontcolor=black, fontcolor=black, bold=true, color=black];
+node1 -> node2 [label=" (1)", labelfontcolor=black, fontcolor=black, bold=true, color=black];
+node3 [label="(3) div", color=lightgrey, labelfontcolor=lightgrey, fontcolor=lightgrey];
+node2 -> node3 [label=" (0)", labelfontcolor=lightgrey, fontcolor=lightgrey, bold=true, color=lightgrey];
+node2 -> node3 [label=" (1)", labelfontcolor=lightgrey, fontcolor=lightgrey, bold=true, color=lightgrey];
+node4 [label="(4) add", color=black, labelfontcolor=black, fontcolor=black];
+node2 -> node4 [label=" (0)", labelfontcolor=black, fontcolor=black, bold=true, color=black];
+node1 -> node4 [label=" (1)", labelfontcolor=black, fontcolor=black, bold=true, color=black];
+node5 [label="(5) mul", color=lightgrey, labelfontcolor=lightgrey, fontcolor=lightgrey];
+node1 -> node5 [label=" (0)", labelfontcolor=lightgrey, fontcolor=lightgrey, bold=true, color=lightgrey];
+node0 -> node5 [label=" (1)", labelfontcolor=lightgrey, fontcolor=lightgrey, bold=true, color=lightgrey];
+node6 [label="(6) add", color=lightgrey, labelfontcolor=lightgrey, fontcolor=lightgrey];
+node0 -> node6 [label=" (0)", labelfontcolor=lightgrey, fontcolor=lightgrey, bold=true, color=lightgrey];
+node3 -> node6 [label=" (1)", labelfontcolor=lightgrey, fontcolor=lightgrey, bold=true, color=lightgrey];
+node7 [label="(7) sub", color=lightgrey, labelfontcolor=lightgrey, fontcolor=lightgrey];
+node2 -> node7 [label=" (0)", labelfontcolor=lightgrey, fontcolor=lightgrey, bold=true, color=lightgrey];
+node2 -> node7 [label=" (1)", labelfontcolor=lightgrey, fontcolor=lightgrey, bold=true, color=lightgrey];
+node8 [label="(8) mul", color=black, labelfontcolor=black, fontcolor=black];
+node4 -> node8 [label=" (0)", labelfontcolor=black, fontcolor=black, bold=true, color=black];
+node2 -> node8 [label=" (1)", labelfontcolor=black, fontcolor=black, bold=true, color=black];
+node9 [label="Output 0", color=black, labelfontcolor=black, fontcolor=black];
+node8 -> node9 [labelfontcolor=black, fontcolor=black, bold=true, color=black];
+{ rank = source; "node0"; }
+{ rank = max;"node9"; }
+}

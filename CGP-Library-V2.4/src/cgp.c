@@ -1842,6 +1842,10 @@ DLL_EXPORT int getChromosomeGenerations(struct chromosome *chromo) {
 	return chromo->generation;
 }
 
+DLL_EXPORT void setActiveNodes(struct chromosome *chromo) {
+	setChromosomeActiveNodes(chromo);
+}
+
 
 /*
 	set the active nodes in the given chromosome

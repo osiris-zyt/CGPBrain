@@ -1973,6 +1973,8 @@ DLL_EXPORT struct results* repeatCGP(struct parameters *params, struct dataSet *
 */
 DLL_EXPORT void setRandomNumberSeed(unsigned int seed);
 
+DLL_EXPORT void setActiveNodes(struct chromosome *chromo);
+
 /*
 	End of extern "C"
 */

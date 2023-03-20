@@ -5,6 +5,7 @@
 #include <time.h>
 #include "cartpole.h"
 
+
 #define GRAVITY 9.8
 #define MASSCART 1
 #define MASSPOLE 0.1
@@ -27,8 +28,13 @@ void reset (struct cartpole_info *info) {
     srand(steps_beyond_terminated);
     double min = -0.5;
     double max = 0.5;
-    for(int i = 0; i < 4; i++){
+    double min_rad = -0.1;
+    double max_rad = 0.1;
+    for(int i = 0; i < 2; i++){
         info->state[i] = min + (rand() / (double) RAND_MAX * (max - min));
+    }
+    for(int i = 2; i < 4; i++){
+        info->state[i] = min_rad + (rand() / (double) RAND_MAX * (max_rad - min_rad));
     }
     info->reward = 0;
     info->terminated = false;
@@ -66,6 +72,7 @@ double step (struct cartpole_info *info, int action){
     info->state[3] = theta_dot;
 
     bool terminated = info->terminated;
+    //printf("threshold: %f, %f\n", x_threshold, theta_threshold_radians);
     if(x < -x_threshold || x > x_threshold || theta < -theta_threshold_radians || theta > theta_threshold_radians){
         terminated = true;
     }

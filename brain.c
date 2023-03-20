@@ -6,15 +6,20 @@
 #include "CGP-Library-V2.4/src/cgp.h"
 #include "tests/cartpole.h"
 
-#define MAX_DEN 10
-#define MAX_NEU 100
+#define MAX_DEN 60
+#define MAX_NEU 30
 #define NUM_INPUTS 4
 #define NUM_OUTPUTS 1
 #define TYPE_OUTPUT 1.0
 #define TYPE_NON_OUTPUT -1.0
+#define NDS_whi 1
+#define ND_init 5
+#define N_ep 8
+#define Num_Problems 1
+int Epoch_Learning = 1;
 
 #define POP_SIZE 10
-#define NUM_GEN 50
+#define NUM_GEN 30
 
 int neuron_Inputs = 10;
 int neuron_Nodes = 15;
@@ -80,6 +85,10 @@ double usr_istep(const int numInputs, const double *inputs, const double *connec
     }
 }
 
+int class_prob(struct chromosome *chromo, double **datasets, double *targets, int param_num, int dataset_length){
+
+}
+
 int nearest_neuron(double pos_x, double pos_y){
     double min_dis = 100;
     int num = 0;
@@ -98,9 +107,9 @@ int nearest_neuron(double pos_x, double pos_y){
     return num;
 }
 
-int update_soma(struct neuron n, struct chromosome *neuron_chromo, double performance, double theta_nb, double theta_nd){
+struct neuron update_soma(struct neuron n, struct chromosome *neuron_chromo, double performance){
     if(!n.valid){
-        return -1;
+        return n;
     }
     double sum_health, sum_weight, sum_pos_x, sum_pos_y, count;
     for(int i = 0; i < MAX_DEN; i++){
@@ -121,20 +130,13 @@ int update_soma(struct neuron n, struct chromosome *neuron_chromo, double perfor
         outputs[i] = getChromosomeOutput(neuron_chromo, i);
     }
     n.health = outputs[0];
-    n.bias = outputs[1];
-    n.pos_x = outputs[2];
-    n.pos_y = outputs[3];
-    if(n.health > theta_nb){
-        return 1;
-    }else if(n.health < theta_nd){
-        n.valid = false;
-        return -1;
-    }else{
-        return 0;
-    }
+    n.bias = tanh(outputs[1]);
+    n.pos_x = tanh(outputs[2]);
+    n.pos_y = tanh(outputs[3]);
+    return n;
 }
 
-void update_dendrites(struct neuron n, struct chromosome *dendrite_chromo, double performance, double theta_db, double theta_dd){
+struct neuron update_dendrites(struct neuron n, struct chromosome *dendrite_chromo, double performance, double theta_db, double theta_dd){
     for(int i = 0; i < MAX_DEN; i++){
         if(!n.d_valid[i]){
             continue;
@@ -149,8 +151,8 @@ void update_dendrites(struct neuron n, struct chromosome *dendrite_chromo, doubl
         }
         n.d_health[i] = outputs[0];
         n.d_weight[i] = outputs[1];
-        n.d_pos_x[i] = outputs[2];
-        n.d_pos_y[i] = outputs[3];
+        n.d_pos_x[i] = tanh(outputs[2]);
+        n.d_pos_y[i] = tanh(outputs[3]);
         if(n.d_health[i] > theta_db){
             for(int j = 0; j < MAX_DEN; j++){
                 if(!n.d_valid[j]){
@@ -166,12 +168,9 @@ void update_dendrites(struct neuron n, struct chromosome *dendrite_chromo, doubl
             n.d_valid[i] = false;
         }
     }
+    return n;
 }
 
-int NDS_whi = 1;
-int N_ep = 8;
-int Num_Problems = 1;
-int Epoch_Learning = 1;
 double theta_nd_pre = -0.6;
 double theta_nb_pre = 0.2;
 double theta_dd_pre = -0.7;
@@ -185,32 +184,38 @@ void brain_updates(struct neuron *brain_neurons, struct chromosome *neuron_chrom
     double prev_fitness, double theta_nb, double theta_nd, double theta_db, double theta_dd){
     for (int j = 0; j < MAX_NEU; j++){
         if(brain_neurons[j].valid){
-                int result = update_soma(brain_neurons[j], neuron_chromo, prev_fitness, theta_nb, theta_nd);
-                if(result == 0){
-                    update_dendrites(brain_neurons[j], dendrite_chromo, prev_fitness, theta_db, theta_dd);
-                }else if(result == 1){
-                    struct neuron new_n;
-                    new_n.health = 0.1;
-                    new_n.bias = brain_neurons[j].bias;
-                    new_n.pos_x = -1 + (getRandom() / (double) RAND_MAX * (1 - -1));
-                    new_n.pos_y = -1 + (getRandom() / (double) RAND_MAX * (1 - -1));
-                    new_n.valid = true;
-                    new_n.type = TYPE_NON_OUTPUT;
-                    for(int k = 0; k < MAX_DEN; k++){
-                        new_n.d_valid[k] = brain_neurons[j].d_valid[k];
-                        new_n.d_health[k] = brain_neurons[j].d_health[k];
-                        new_n.d_weight[k] = brain_neurons[j].d_weight[k];
-                        new_n.d_pos_x[k] = -1 + (getRandom() / (double) RAND_MAX * (new_n.pos_x - -1));
-                        new_n.d_pos_y[k] = -1 + (getRandom() / (double) RAND_MAX * (1 - -1));
-                    }
-                    for (int l = 0; l < MAX_NEU; l++){
-                        if(!brain_neurons[l].valid){
-                            brain_neurons[l] = new_n;
-                            break;
-                        }
-                    }
-                    update_dendrites(brain_neurons[j], dendrite_chromo, prev_fitness, theta_db, theta_dd);
+            brain_neurons[j] = update_soma(brain_neurons[j], neuron_chromo, prev_fitness);
+            if(brain_neurons[j].health > theta_nd){
+                brain_neurons[j] = update_dendrites(brain_neurons[j], dendrite_chromo, prev_fitness, theta_db, theta_dd);
+            }
+        }
+    }
+    for (int j = 0; j < MAX_NEU; j++){
+        if(brain_neurons[j].health > theta_nb){
+            brain_neurons[j].health = 0.1;
+
+            struct neuron new_n;
+            new_n.health = 0.1;
+            new_n.bias = brain_neurons[j].bias;
+            new_n.pos_x = brain_neurons[j].pos_x + 0.0001;
+            new_n.pos_y = brain_neurons[j].pos_y + 0.0001;
+            new_n.valid = true;
+            new_n.type = TYPE_NON_OUTPUT;
+            for(int k = 0; k < MAX_DEN; k++){
+                new_n.d_valid[k] = brain_neurons[j].d_valid[k];
+                new_n.d_health[k] = brain_neurons[j].d_health[k];
+                new_n.d_weight[k] = brain_neurons[j].d_weight[k];
+                new_n.d_pos_x[k] = -1 + (getRandom() / (double) RAND_MAX * (new_n.pos_x - -1));
+                new_n.d_pos_y[k] = -1 + (getRandom() / (double) RAND_MAX * (1 - -1));
+            }
+            for (int l = 0; l < MAX_NEU; l++){
+                if(!brain_neurons[l].valid){
+                    brain_neurons[l] = new_n;
+                    break;
                 }
+            }
+        }else if(brain_neurons[j].health < theta_nd && brain_neurons[j].type != TYPE_OUTPUT){
+            brain_neurons[j].valid = false;
         }
     }
 }
@@ -237,7 +242,7 @@ double epoch_fitness(struct chromosome *neuron_chromo, struct chromosome *dendri
         brain_neurons[i].pos_y = -1 + (getRandom() / (double) RAND_MAX * (1 - -1));
         brain_neurons[i].valid = true;
         brain_neurons[i].type = TYPE_OUTPUT;
-        for (int j = 0; j < NUM_INPUTS; j++){
+        for (int j = 0; j < ND_init; j++){
             brain_neurons[i].d_health[j] = 0.1;
             brain_neurons[i].d_pos_x[j] = -1 + (getRandom() / (double) RAND_MAX * (brain_neurons[i].pos_x - -1));
             brain_neurons[i].d_pos_y[j] = -1 + (getRandom() / (double) RAND_MAX * (1 - -1));
@@ -259,13 +264,13 @@ double epoch_fitness(struct chromosome *neuron_chromo, struct chromosome *dendri
         double prev_fitness = 0;
         for (int i = 0; i < NDS_whi; i++){
             //evolved soma and dendrite update
-            brain_updates(brain_neurons, neuron_chromo, dendrite_chromo, prev_fitness, theta_nb_whi, theta_nd_whi, 
+            brain_updates(brain_neurons, neuron_chromo, dendrite_chromo, prev_epoch_fitness/100, theta_nb_whi, theta_nd_whi, 
                 theta_db_whi, theta_dd_whi);
         }
 
         //printf("extract ANN No. %d\n", ep);
-        // for (int i = 0; i < 25; i++){
-        //     printf("%d ", brain_neurons[i].valid);
+        // for (int j = 0; j < 25; j++){
+        //     printf("%d ", brain_neurons[j].valid);
         // }
         // printf("\n");
         
@@ -312,7 +317,7 @@ double epoch_fitness(struct chromosome *neuron_chromo, struct chromosome *dendri
                     n->maxArity = actarity;
                     n->output = 0;
                     extracted->nodes[nodecounter] = n;
-                    extracted->activeNodes[nodecounter] = nodecounter+NUM_INPUTS;
+                    //extracted->activeNodes[nodecounter] = nodecounter+NUM_INPUTS;
                     if(brain_neurons[j].type == 1){
                         extracted->outputNodes[outputcounter] = nodecounter+NUM_INPUTS;
                         outputcounter++;
@@ -330,17 +335,17 @@ double epoch_fitness(struct chromosome *neuron_chromo, struct chromosome *dendri
             extracted->funcSet = (struct functionSet*)malloc(sizeof(struct functionSet));
 	        copyFunctionSet(extracted->funcSet, params->funcSet);
 
-            removeInactiveNodes(extracted);
-            printChromosome(extracted, 1);
+            //removeInactiveNodes(extracted);
+            //printChromosome(extracted, 0);
             //setActiveNodes(extracted);
 
             struct cartpole_info info;
             reset(&info);
 
-            for (int j = 0; j < 100; j++){
+            for (int j = 0; j < 1000; j++){
                 executeChromosome(extracted, info.state);
                 int action = 0;
-                if(getChromosomeOutput(extracted, 0) > 1){
+                if(getChromosomeOutput(extracted, 0) > 0){
                     action = 1;
                 }
                 double ep_fit = step(&info, action);
@@ -422,32 +427,124 @@ void brain_evaluation(){
 }
 
 int main(void) {
-    seed_global = 10;
-    //brain_evaluation();
-    struct parameters *neuron_params = NULL;
-    struct parameters *dendrite_params = NULL;
+    seed_global = 114514;
+    brain_evaluation();
 
-    struct chromosome *neuron_chromo;
-    struct chromosome *dendrite_chromo;
+    // struct parameters *neuron_params = NULL;
+    // struct parameters *dendrite_params = NULL;
+
+    // struct chromosome *neuron_chromo;
+    // struct chromosome *dendrite_chromo;
     
-    neuron_params = initialiseParameters(neuron_Inputs, neuron_Nodes, neuron_Outputs, neuron_Arity);
-    dendrite_params = initialiseParameters(dendrite_Inputs, dendrite_Nodes, dendrite_Outputs, dendrite_Arity);
+    // neuron_params = initialiseParameters(neuron_Inputs, neuron_Nodes, neuron_Outputs, neuron_Arity);
+    // dendrite_params = initialiseParameters(dendrite_Inputs, dendrite_Nodes, dendrite_Outputs, dendrite_Arity);
 
-    addNodeFunction(neuron_params, "add,mul,xor");
-    addCustomNodeFunction(neuron_params, usr_step, "ustep", -1);
-    addCustomNodeFunction(neuron_params, usr_istep, "istep", -1);
-    addNodeFunction(dendrite_params, "add,mul,xor");
-    addCustomNodeFunction(dendrite_params, usr_step, "ustep", -1);
-    addCustomNodeFunction(dendrite_params, usr_istep, "istep", -1);
+    // addNodeFunction(neuron_params, "add,mul,xor");
+    // addCustomNodeFunction(neuron_params, usr_step, "ustep", -1);
+    // addCustomNodeFunction(neuron_params, usr_istep, "istep", -1);
+    // addNodeFunction(dendrite_params, "add,mul,xor");
+    // addCustomNodeFunction(dendrite_params, usr_step, "ustep", -1);
+    // addCustomNodeFunction(dendrite_params, usr_istep, "istep", -1);
 
-    neuron_chromo = initialiseChromosome(neuron_params);
-    dendrite_chromo = initialiseChromosome(dendrite_params);
+    // neuron_chromo = initialiseChromosome(neuron_params);
+    // dendrite_chromo = initialiseChromosome(dendrite_params);
 
-    
+    // struct neuron brain_neurons[MAX_NEU];
+    // for (int i = 0; i < MAX_NEU; i++){
+    //     brain_neurons[i].valid = false;
+    //     for (int j = 0; j < MAX_DEN; j++){
+    //         brain_neurons[i].d_valid[j] = false;
+    //     }
+    // }
+    // cur_neuron = brain_neurons;
 
-    freeChromosome(neuron_chromo);
-    freeChromosome(dendrite_chromo);
-    freeParameters(neuron_params);
-    freeParameters(dendrite_params);
+    // int NDS_pre = 6;
+
+    // //printf("brain initialisation...\n");
+
+    // for (int i = 0; i < NUM_OUTPUTS; i++){
+    //     //populate initial output neurons
+    //     brain_neurons[i].bias = 0;
+    //     brain_neurons[i].health = 0.1;
+    //     brain_neurons[i].pos_x = -1 + (getRandom() / (double) RAND_MAX * (1 - -1));
+    //     brain_neurons[i].pos_y = -1 + (getRandom() / (double) RAND_MAX * (1 - -1));
+    //     brain_neurons[i].valid = true;
+    //     brain_neurons[i].type = TYPE_OUTPUT;
+    //     for (int j = 0; j < NUM_INPUTS; j++){
+    //         brain_neurons[i].d_health[j] = 0.1;
+    //         brain_neurons[i].d_pos_x[j] = -1 + (getRandom() / (double) RAND_MAX * (brain_neurons[i].pos_x - -1));
+    //         brain_neurons[i].d_pos_y[j] = -1 + (getRandom() / (double) RAND_MAX * (1 - -1));
+    //         brain_neurons[i].d_weight[j] = 1.0;
+    //         brain_neurons[i].d_valid[j] = true;
+    //     }
+    // }
+
+    // //printf("pre brain updates...\n");
+    // for (int i = 0; i < 10; i++){
+    //     //soma and dendrite update
+    //     for (int j = 0; j < 25; j++){
+    //         printf("%d ", brain_neurons[j].valid);
+    //     }
+    //     printf("\n");
+
+    //     for (int j = 0; j < 25; j++){
+    //         printf("%f ", brain_neurons[j].pos_x);
+    //     }
+    //     printf("\n");
+    //     printf("\n");
+        
+    //     brain_updates(brain_neurons, neuron_chromo, dendrite_chromo, 0, theta_nb_pre, theta_nd_pre, 
+    //         theta_db_pre, theta_dd_pre);
+    // }
+
+    // freeChromosome(neuron_chromo);
+    // freeChromosome(dendrite_chromo);
+    // freeParameters(neuron_params);
+    // freeParameters(dendrite_params);
+
+    /* struct cartpole_info info;
+    reset(&info);
+    double ep_fit;
+    ep_fit += step(&info, 0);
+    printf("%f\n", info.state[2]);
+    printf("%f\n", ep_fit);
+    ep_fit += step(&info, 0);
+    printf("%f\n", ep_fit);
+    ep_fit += step(&info, 0);
+    printf("%f\n", ep_fit);
+    ep_fit += step(&info, 1);
+    printf("%f\n", ep_fit);
+    ep_fit += step(&info, 1);
+    printf("%f\n", ep_fit);
+    ep_fit += step(&info, 1);
+    printf("%f\n", ep_fit);
+    ep_fit += step(&info, 1);
+    printf("%f\n", ep_fit);
+    ep_fit += step(&info, 0);
+    printf("%f\n", ep_fit);
+    ep_fit += step(&info, 0);
+    printf("%f\n", ep_fit);
+    ep_fit += step(&info, 1);
+    printf("%f\n", ep_fit);
+    ep_fit += step(&info, 1);
+    printf("%f\n", ep_fit);
+    ep_fit += step(&info, 1);
+    printf("%f\n", ep_fit);
+    ep_fit += step(&info, 1);
+    printf("%f\n", ep_fit);
+    ep_fit += step(&info, 1);
+    printf("%f\n", ep_fit);
+    ep_fit += step(&info, 1);
+    printf("%f\n", ep_fit);
+    ep_fit += step(&info, 1);
+    printf("%f\n", ep_fit);
+    printf("%f\n", info.state[2]);
+    ep_fit += step(&info, 1);
+    printf("%f\n", ep_fit);
+    ep_fit += step(&info, 1);
+    printf("%f\n", ep_fit);
+    ep_fit += step(&info, 1);
+    printf("%f\n", ep_fit);
+ */
     return 0;
 }

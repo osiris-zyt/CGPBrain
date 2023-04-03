@@ -6,6 +6,11 @@
 #include "CGP-Library-V2.4/src/cgp.h"
 #include "tests/cartpole.h"
 
+/* Multitasking ANN model project
+Author: Yintong Zhang */
+/* For original model and details, see https://direct.mit.edu/isal/proceedings/isal2020/473/98437 */
+
+//Global Parameters
 #define MAX_DEN 60
 #define MAX_NEU 30
 #define NUM_INPUTS 4
@@ -20,6 +25,7 @@ int Epoch_Learning = 1;
 
 #define POP_SIZE 10
 #define NUM_GEN 30
+#define MAXRECORDS 1000
 
 int neuron_Inputs = 10;
 int neuron_Nodes = 15;
@@ -35,6 +41,8 @@ int seed_global = 0;
 
 struct neuron *cur_neuron = NULL;
 
+double class_dataset[MAXRECORDS][5];
+
 struct neuron{
     double health;
     double bias;
@@ -49,12 +57,14 @@ struct neuron{
     bool d_valid[MAX_DEN];
 };
 
+//Singleton random number generator
 int getRandom(){
     srand(seed_global);
     seed_global = rand();
     return rand();
 }
 
+/*Helper function from CGP Library */
 static void copyFunctionSet(struct functionSet *funcSetDest, struct functionSet *funcSetSrc) {
 
 	int i;
@@ -68,7 +78,7 @@ static void copyFunctionSet(struct functionSet *funcSetDest, struct functionSet 
 	}
 }
 
-
+/* Custom chromosome node functions for CGP */
 double usr_step(const int numInputs, const double *inputs, const double *connectionWeights){
     if(inputs[0] < 0){
         return 0;
@@ -85,10 +95,17 @@ double usr_istep(const int numInputs, const double *inputs, const double *connec
     }
 }
 
-int class_prob(struct chromosome *chromo, double **datasets, double *targets, int param_num, int dataset_length){
 
+int class_prob(struct chromosome *chromo, double **datasets, double *targets, int param_num, int dataset_length){
+    int score = 0;
+    for(int i = 0; i < dataset_length; i++){
+        for(int j = 0; j < param_num; j++){
+
+        }
+    }
 }
 
+/* Fuction for finding nearest neuron  from a dendrite in an ANN topological graph */
 int nearest_neuron(double pos_x, double pos_y){
     double min_dis = 100;
     int num = 0;
@@ -107,6 +124,7 @@ int nearest_neuron(double pos_x, double pos_y){
     return num;
 }
 
+/* Soma updating function with the soma program */
 struct neuron update_soma(struct neuron n, struct chromosome *neuron_chromo, double performance){
     if(!n.valid){
         return n;
@@ -136,6 +154,7 @@ struct neuron update_soma(struct neuron n, struct chromosome *neuron_chromo, dou
     return n;
 }
 
+/* Dendrite updating function with the dendrite program */
 struct neuron update_dendrites(struct neuron n, struct chromosome *dendrite_chromo, double performance, double theta_db, double theta_dd){
     for(int i = 0; i < MAX_DEN; i++){
         if(!n.d_valid[i]){
@@ -171,6 +190,7 @@ struct neuron update_dendrites(struct neuron n, struct chromosome *dendrite_chro
     return n;
 }
 
+//predefined training parameters
 double theta_nd_pre = -0.6;
 double theta_nb_pre = 0.2;
 double theta_dd_pre = -0.7;
@@ -180,6 +200,7 @@ double theta_nb_whi = 0.2;
 double theta_dd_whi = -0.65;
 double theta_db_whi = -0.6;
 
+/* Brain updating function for a single developmental step */
 void brain_updates(struct neuron *brain_neurons, struct chromosome *neuron_chromo, struct chromosome *dendrite_chromo, 
     double prev_fitness, double theta_nb, double theta_nd, double theta_db, double theta_dd){
     for (int j = 0; j < MAX_NEU; j++){
@@ -220,6 +241,7 @@ void brain_updates(struct neuron *brain_neurons, struct chromosome *neuron_chrom
     }
 }
 
+/* ANN development and fitness evaluation for a single epoch */
 double epoch_fitness(struct chromosome *neuron_chromo, struct chromosome *dendrite_chromo){
     struct neuron brain_neurons[MAX_NEU];
     for (int i = 0; i < MAX_NEU; i++){
@@ -231,8 +253,6 @@ double epoch_fitness(struct chromosome *neuron_chromo, struct chromosome *dendri
     cur_neuron = brain_neurons;
 
     int NDS_pre = 6;
-
-    //printf("brain initialisation...\n");
 
     for (int i = 0; i < NUM_OUTPUTS; i++){
         //populate initial output neurons
@@ -274,7 +294,7 @@ double epoch_fitness(struct chromosome *neuron_chromo, struct chromosome *dendri
         // }
         // printf("\n");
         
-        double fitness = 0;
+        double fitness = 0, fitness2 = 0;
         for (int i = 0; i < Num_Problems; i++){
             //extract ANN
             struct chromosome *extracted;
@@ -327,7 +347,6 @@ double epoch_fitness(struct chromosome *neuron_chromo, struct chromosome *dendri
             }
             extracted->arity = MAX_DEN;
             extracted->numNodes = nodecounter;
-            //printf("%d\n", nodecounter);
             extracted->numActiveNodes = nodecounter;
             extracted->numOutputs = outputcounter;
             extracted->numInputs = NUM_INPUTS;
@@ -339,23 +358,38 @@ double epoch_fitness(struct chromosome *neuron_chromo, struct chromosome *dendri
             //printChromosome(extracted, 0);
             //setActiveNodes(extracted);
 
+            //Perform a single RL task: CartPole
             struct cartpole_info info;
             reset(&info);
-
+            
             for (int j = 0; j < 1000; j++){
-                executeChromosome(extracted, info.state);
+                double ANN_inputs[NUM_INPUTS];
+                for(int k = 0; k < 4; k++){
+                    ANN_inputs[k] = info.state[k];
+                }
+                // for(int k = 0; k < 4; k++){
+                //     ANN_inputs[k+4] = class_dataset[j][k];
+                // }
+                executeChromosome(extracted, ANN_inputs);
                 int action = 0;
+                double target = 0;
                 if(getChromosomeOutput(extracted, 0) > 0){
                     action = 1;
                 }
+                // if(getChromosomeOutput(extracted, 1) > 0){
+                //     target = 1;
+                // }
                 double ep_fit = step(&info, action);
                 fitness += ep_fit;
+                // if(target == class_dataset[j][4]){
+                //     fitness2 += 1;
+                // }
             }
-
+            
             freeChromosome(extracted);
             freeParameters(params);
         }
-        prev_fitness = fitness;
+        prev_fitness = (fitness+fitness2);
         double epoch_fitness = prev_fitness;
         if(Epoch_Learning){
             //update fitness
@@ -365,10 +399,12 @@ double epoch_fitness(struct chromosome *neuron_chromo, struct chromosome *dendri
                 prev_epoch_fitness = epoch_fitness;
             }
         }
+        //printf("Fitness for problem 1 is: %f, problem 2 is: %f\n", fitness, fitness2);
     }
     return prev_epoch_fitness;
 }
 
+/* Initialize the chromosome population and Evolutionary Algorithm */
 void brain_evaluation(){
     struct parameters *neuron_params = NULL;
     struct parameters *dendrite_params = NULL;
@@ -428,79 +464,28 @@ void brain_evaluation(){
 
 int main(void) {
     seed_global = 114514;
+
+    //Reading data for a classification problem (Used only in solving more than 1 problems)
+    FILE *file;
+    int nRecords = 0;
+    memset(class_dataset, 0, sizeof(class_dataset));
+    file = fopen("banknote_auth.txt", "r");
+
+    if (file == NULL){
+        printf("File does not exist!");
+    }else{
+        //printf("before\n");
+        while (EOF != fscanf(file, "%f,%f,%f,%f,%f", &class_dataset[nRecords][0], &class_dataset[nRecords][1], 
+                                &class_dataset[nRecords][2], &class_dataset[nRecords][3], &class_dataset[nRecords][4]) && nRecords<MAXRECORDS)
+        {
+            //printf("%d\n", nRecords);
+            nRecords++;
+        }
+    }
+
+    fclose(file);
+
     brain_evaluation();
-
-    // struct parameters *neuron_params = NULL;
-    // struct parameters *dendrite_params = NULL;
-
-    // struct chromosome *neuron_chromo;
-    // struct chromosome *dendrite_chromo;
-    
-    // neuron_params = initialiseParameters(neuron_Inputs, neuron_Nodes, neuron_Outputs, neuron_Arity);
-    // dendrite_params = initialiseParameters(dendrite_Inputs, dendrite_Nodes, dendrite_Outputs, dendrite_Arity);
-
-    // addNodeFunction(neuron_params, "add,mul,xor");
-    // addCustomNodeFunction(neuron_params, usr_step, "ustep", -1);
-    // addCustomNodeFunction(neuron_params, usr_istep, "istep", -1);
-    // addNodeFunction(dendrite_params, "add,mul,xor");
-    // addCustomNodeFunction(dendrite_params, usr_step, "ustep", -1);
-    // addCustomNodeFunction(dendrite_params, usr_istep, "istep", -1);
-
-    // neuron_chromo = initialiseChromosome(neuron_params);
-    // dendrite_chromo = initialiseChromosome(dendrite_params);
-
-    // struct neuron brain_neurons[MAX_NEU];
-    // for (int i = 0; i < MAX_NEU; i++){
-    //     brain_neurons[i].valid = false;
-    //     for (int j = 0; j < MAX_DEN; j++){
-    //         brain_neurons[i].d_valid[j] = false;
-    //     }
-    // }
-    // cur_neuron = brain_neurons;
-
-    // int NDS_pre = 6;
-
-    // //printf("brain initialisation...\n");
-
-    // for (int i = 0; i < NUM_OUTPUTS; i++){
-    //     //populate initial output neurons
-    //     brain_neurons[i].bias = 0;
-    //     brain_neurons[i].health = 0.1;
-    //     brain_neurons[i].pos_x = -1 + (getRandom() / (double) RAND_MAX * (1 - -1));
-    //     brain_neurons[i].pos_y = -1 + (getRandom() / (double) RAND_MAX * (1 - -1));
-    //     brain_neurons[i].valid = true;
-    //     brain_neurons[i].type = TYPE_OUTPUT;
-    //     for (int j = 0; j < NUM_INPUTS; j++){
-    //         brain_neurons[i].d_health[j] = 0.1;
-    //         brain_neurons[i].d_pos_x[j] = -1 + (getRandom() / (double) RAND_MAX * (brain_neurons[i].pos_x - -1));
-    //         brain_neurons[i].d_pos_y[j] = -1 + (getRandom() / (double) RAND_MAX * (1 - -1));
-    //         brain_neurons[i].d_weight[j] = 1.0;
-    //         brain_neurons[i].d_valid[j] = true;
-    //     }
-    // }
-
-    // //printf("pre brain updates...\n");
-    // for (int i = 0; i < 10; i++){
-    //     //soma and dendrite update
-    //     for (int j = 0; j < 25; j++){
-    //         printf("%d ", brain_neurons[j].valid);
-    //     }
-    //     printf("\n");
-
-    //     for (int j = 0; j < 25; j++){
-    //         printf("%f ", brain_neurons[j].pos_x);
-    //     }
-    //     printf("\n");
-    //     printf("\n");
-        
-    //     brain_updates(brain_neurons, neuron_chromo, dendrite_chromo, 0, theta_nb_pre, theta_nd_pre, 
-    //         theta_db_pre, theta_dd_pre);
-    // }
-
-    // freeChromosome(neuron_chromo);
-    // freeChromosome(dendrite_chromo);
-    // freeParameters(neuron_params);
-    // freeParameters(dendrite_params);
 
     /* struct cartpole_info info;
     reset(&info);

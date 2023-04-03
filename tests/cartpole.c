@@ -5,6 +5,9 @@
 #include <time.h>
 #include "cartpole.h"
 
+/* A C version of the classic CartPole Problem. 
+Original code (in Python): https://github.com/openai/gym/blob/master/gym/envs/classic_control/cartpole.py 
+Author: Yintong Zhang */
 
 #define GRAVITY 9.8
 #define MASSCART 1
